@@ -19,6 +19,16 @@ socket.on('connect', function(){
     });
   });
 
+  socket.on('saveFile', function(data){
+    console.log('saveFile :' + JSON.stringify(data));
+    fs.writeFile(data.file, data.body, function(err){
+      if(err){
+        socket.emit('sendchat', "error saving file " + data.file + ' ' + err);
+      }else{
+        socket.emit('sendchat', "file save succeeded for file " + data.file);
+      }
+    });
+  });
 
   console.log('config:' + JSON.stringify(config));
   finalFileList = [];

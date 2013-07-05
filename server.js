@@ -32,11 +32,13 @@ io.sockets.on('connection', function (socket) {
 
       socket.emit('changeFile', data.files[0]);
       rooms[data.name].currentFile = data.files[0];
+      rooms[data.name].hostSocket = socket;
 
       console.log('new room created:' + data.name);
     }else{
       //just update the files
       rooms[data.name].files = data.files;
+      rooms[data.name].hostSocket = socket;
       console.log('host reconnected to room' + data.name);
     }   
   });
@@ -64,6 +66,14 @@ io.sockets.on('connection', function (socket) {
       if(!err && room!="" && room !=null){
         rooms[room].currentFile = newFile;
         io.sockets.in(room).emit('changeFile', newFile);
+      }
+    });    
+  });
+
+  socket.on('saveFile', function(){
+    socket.get('room', function (err, room) {
+      if(!err && room!="" && room !=null){
+        rooms[room].hostSocket.emit('saveFile', {file:rooms[room].currentFile, body:rooms[room].body})
       }
     });    
   });
