@@ -17,7 +17,7 @@ Clone repo then..
 ```
 $ npm install
 $ node server.js
-* node host.js (seperate terminal)
+$ node host.js (seperate terminal)
 ```
 this will effectively 'host' the hackify project in a local instance of hackify (very circular)
 
