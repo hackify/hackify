@@ -1,0 +1,14 @@
+{
+  "author": "Michael Dausmann",
+  "name": "hackify",
+  "homepage": "http://hackify.org",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">= 0.8.12"
+  },
+  "dependencies": {
+    "socket.io":"0.9.16",
+    "socket.io-client":"0.9.16"
+    },
+  "devDependencies": {}
+}

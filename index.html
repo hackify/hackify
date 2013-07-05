@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Hackify</title>
+    <link rel="stylesheet" href="http://codemirror.net/lib/codemirror.css">
+    <link rel="stylesheet" href="http://codemirror.net/theme/ambiance.css">
+    <script src="http://codemirror.net/lib/codemirror.js"></script>
+    <script src="http://codemirror.net/addon/mode/overlay.js"></script>
+    <script src="http://codemirror.net/mode/xml/xml.js"></script>
+    <script src="http://codemirror.net/mode/markdown/markdown.js"></script>
+    <script src="http://codemirror.net/mode/gfm/gfm.js"></script>
+    
+    <!-- Code block highlighting modes -->
+    <script src="http://codemirror.net/mode/javascript/javascript.js"></script>
+    <script src="http://codemirror.net/mode/css/css.js"></script>
+    <script src="http://codemirror.net/mode/htmlmixed/htmlmixed.js"></script>
+    <script src="http://codemirror.net/mode/clike/clike.js"></script>
+    <script src="http://codemirror.net/mode/clojure/clojure.js"></script>
+    <script src="http://codemirror.net/mode/ruby/ruby.js"></script>
+
+    <script src="http://code.jquery.com/jquery-1.10.0.min.js"></script>
+    
+    <style type="text/css">
+      body
+      {
+        margin: 0;
+        padding: 0;
+        max-width:inherit;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <!--code window-->
+    <h3 id="fileName">no file</h3>
+    <textarea id="textit">Please select a file to edit.</textarea>
+    
+    <h3>Files</h3>
+    <div id="files"></div>
+
+    <h3>Chat</h3>
+    <div style="float:left;width:300px;height:250px;overflow:scroll-y;padding:10px;">
+      <div id="conversation"></div>
+      <input id="data" style="width:200px;" />
+      <input type="button" id="datasend" value="send" />
+    </div>
+ 
+    <script>
+      var editor = CodeMirror.fromTextArea(document.getElementById("textit"), {
+        mode: 'gfm',
+        lineNumbers: true,
+        theme: "ambiance"
+      });
+    </script>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      var socket = io.connect();
+      
+      //client --> server (Join a particular room)
+      var room = decodeURIComponent((new RegExp('[?|&]' + 'room' + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+      socket.emit('join', {room: room});
+      
+      //server --> client (fresh or initial drop of data for the editor)
+      socket.on('refreshAll', function (data) {
+        editor.setValue(data.body);
+        data.files.forEach(function(file){
+          $('#files').append('<button onclick="doChange(\'' + file + '\')">' + file + ' </button>');
+        });
+        $('#fileName').text(data.currentFile);
+      });
+
+      //server --> client (notification that the active file has changed, data comes later)
+      socket.on('changeFile', function (file) {
+        $('#fileName').text(file);
+      });
+
+      //server --> client (server sends fresh data for active file)
+      socket.on('refreshData', function (body) {
+        editor.setValue(body);
+      });
+
+      //server --> client (recieve an incremental operation from the active editor via the server)
+      socket.on('change', function (data) {
+        console.log(data);
+        editor.replaceRange(data.text, data.from, data.to);
+      });
+
+      // listener, whenever the server emits 'updatechat', this updates the chat body
+      socket.on('updatechat', function (username, data) {
+        $('#conversation').append('<b>'+username + ':</b> ' + data + '<br>');
+      });
+      
+      //client --> server (active client sends both incremental and complete file data to the server)
+      editor.on('change', function (i, op) {
+        console.log('editor change:' + op);
+        socket.emit('change', op);
+        socket.emit('refreshData', editor.getValue());
+      });
+
+      //client --> server (client requests that the active file should change)
+      var doChange = function(file){
+        socket.emit('changeFile', file);
+      };
+
+      //set up the chat
+      $(function(){
+        // when the client clicks SEND
+        $('#datasend').click( function() {
+          var message = $('#data').val();
+          $('#data').val('');
+          socket.emit('sendchat', message);
+        });
+
+        // when the client hits ENTER on their keyboard
+        $('#data').keypress(function(e) {
+          if(e.which == 13) {
+            $(this).blur();
+            $('#datasend').focus().click();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
