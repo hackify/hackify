@@ -46,6 +46,14 @@
       <input id="data" style="width:200px;" />
       <input type="button" id="datasend" value="send" />
     </div>
+    <p>You are connected as
+      <span id="userId"></span>
+      <input id="newUserId" style="width:200px;" />
+      <input type="button" id="changeUserId" value="change" />
+    </p>
+
+    <h3>Users</h3>
+    <div id="users"></div>
  
     <script>
       var editor = CodeMirror.fromTextArea(document.getElementById("textit"), {
@@ -58,7 +66,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
       var socket = io.connect();
-      
+
       //client --> server (Join a particular room)
       var room = decodeURIComponent((new RegExp('[?|&]' + 'room' + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
       socket.emit('join', {room: room});
@@ -66,10 +74,12 @@
       //server --> client (fresh or initial drop of data for the editor)
       socket.on('refreshAll', function (data) {
         editor.setValue(data.body);
+        //TODO - refactor files same as users i.e. simple emit for each new file rather than getting list at start.
         data.files.forEach(function(file){
           $('#files').append('<button onclick="doChange(\'' + file + '\')">' + file + ' </button>');
         });
         $('#fileName').text(data.currentFile);
+        $('#userId').text(data.userId);
       });
 
       //server --> client (notification that the active file has changed, data comes later)
@@ -89,8 +99,19 @@
       });
 
       // listener, whenever the server emits 'updatechat', this updates the chat body
-      socket.on('updatechat', function (username, data) {
-        $('#conversation').append('<b>'+username + ':</b> ' + data + '<br>');
+      socket.on('updatechat', function (userId, data) {
+        $('#conversation').append('<b>'+ userId + ':</b> ' + data + '<br>');
+      });
+
+      socket.on('newUser', function(userId){
+        $('#users').append('<div id="' + userId + '">' + userId + '</div>');
+      });
+
+      socket.on('userIdChanged', function(oldUserId, newUserId){
+        $('#' + oldUserId).replaceWith('<div id="' + newUserId + '">' + newUserId + '</div>');  //soooo hacky, need to angular this stuff
+        if(oldUserId===$('#userId').text()){
+          $('#userId').text(newUserId);
+        }      
       });
       
       //client --> server (active client sends both incremental and complete file data to the server)
@@ -125,6 +146,11 @@
         $('#doSave').click(function() {
           socket.emit('saveFile');
         });
+
+        $('#changeUserId').click(function() {
+          socket.emit('changeUserId', $('#newUserId').val());
+        });
+
       });
     </script>
   </body>

@@ -25,6 +25,7 @@ io.sockets.on('connection', function (socket) {
   //host --> server --> host (host sends metadata and a request to create a new room, Host in return gets a request to get fresh file data)
   socket.on('createOrJoinRoom', function (data) {
     socket.set('room', data.name);
+    socket.set('userId', 'host');
     socket.join(data.name);
     if(!rooms[data.name]){
       //full update of state including ody and request fresh file (pick first file arbitrarily)
@@ -82,12 +83,29 @@ io.sockets.on('connection', function (socket) {
   socket.on('join', function (data) {
     console.log('recieved Join request room' + data.room);
     if(rooms[data.room]){
+      var roomState = rooms[data.room];
       socket.join(data.room);
       socket.set('room', data.room);
+      var userId = (data.userId)?data.userId:'hacker' + Math.floor(Math.random() * 9999999999).toString();
+      socket.set('userId', userId);
+      
+      //tell this socket about all of the users (including itself)
+      var clients = io.sockets.clients(data.room);
+      clients.forEach(function(client){
+        client.get('userId', function(err, clientUserId){
+          if(clientUserId){
+            socket.emit('newUser', clientUserId);
+          }
+        });
+      });
+
+      //now tell all of the other sockets about this guy
+      socket.broadcast.to(data.room).emit('newUser', userId);
+
       console.log('refreshing socket with room data');
-      socket.emit('refreshAll', {body: rooms[data.room].body, files:rooms[data.room].files, currentFile:rooms[data.room].currentFile });
+      socket.emit('refreshAll', {body: roomState.body, files:roomState.files, currentFile:roomState.currentFile, userId:userId });
     }else{
-      socket.emit('error', 'room does not exist')
+      socket.emit('updatechat','hackify','room ' + data.room + ' does not exist')
     }
   });
 
@@ -113,9 +131,27 @@ io.sockets.on('connection', function (socket) {
   socket.on('sendchat', function (data) {
     socket.get('room', function (err, room) {
       if(!err && room!="" && room !=null){
-        console.log('sendchat:' + data);
-        io.sockets.in(room).emit('updatechat','anon', data);
+        socket.get('userId', function(err, userId){
+          console.log('sendchat:' + data);
+          io.sockets.in(room).emit('updatechat',userId, data);          
+      })
       }
     });
   });
+
+  socket.on('changeUserId', function (newUserId) {
+    console.log('newUserId:' + newUserId);
+    socket.get('room', function (err, room) {
+      if(!err && room!="" && room !=null){
+        socket.get('userId', function(err, userId){
+          socket.set('userId', newUserId, function(){
+            io.sockets.in(room).emit('userIdChanged',userId, newUserId);
+            io.sockets.in(room).emit('updatechat', 'hackify', userId + ' changed name to ' + newUserId);              
+          });
+        
+      })
+      }
+    });
+  });
+
 });
