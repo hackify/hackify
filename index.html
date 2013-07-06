@@ -73,10 +73,10 @@
 
       //client --> server (Join a particular room)
       var room = decodeURIComponent((new RegExp('[?|&]' + 'room' + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
-      socket.emit('join', {room: room});
+      socket.emit('joinRoom', {room: room});
 
       //server --> client (notification that the active file has changed, data comes later)
-      socket.on('changeFile', function (file) {
+      socket.on('changeCurrentFile', function (file) {
         $('#fileName').text(file);
       });
 
@@ -102,14 +102,13 @@
       });
 
       //server --> client (recieve an incremental operation from the active editor via the server)
-      socket.on('change', function (data) {
+      socket.on('changeData', function (data) {
         console.log(data);
         editor.replaceRange(data.text, data.from, data.to);
       });
 
-      // listener, whenever the server emits 'updatechat', this updates the chat body
-      socket.on('updatechat', function (userId, data) {
-        $('#conversation').append('<b>'+ userId + ':</b> ' + data + '<br>');
+      socket.on('newChatMessage', function (message, userId) {
+        $('#conversation').append('<b>'+ userId + ':</b> ' + message + '<br>');
       });
 
       socket.on('newUser', function(data){
@@ -133,13 +132,13 @@
       //client --> server (active client sends both incremental and complete file data to the server)
       editor.on('change', function (i, op) {
         console.log('editor change:' + op);
-        socket.emit('change', op);
-        socket.emit('refreshData', editor.getValue());
+        socket.emit('changeData', op);
+        socket.emit('refreshData', editor.getValue(), false);//refresh data on server but don't broadcast
       });
 
       //client --> server (client requests that the active file should change)
       var doChange = function(file){
-        socket.emit('changeFile', file);
+        socket.emit('changeCurrentFile', file);
       };
 
       //set up the chat
@@ -148,7 +147,7 @@
         $('#datasend').click( function() {
           var message = $('#data').val();
           $('#data').val('');
-          socket.emit('sendchat', message);
+          socket.emit('newChatMessage', message);
         });
 
         // when the client hits ENTER on their keyboard
@@ -160,7 +159,7 @@
         });
 
         $('#doSave').click(function() {
-          socket.emit('saveFile');
+          socket.emit('saveCurrentFile');
         });
 
         $('#changeUserId').click(function() {
