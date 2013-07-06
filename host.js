@@ -5,6 +5,9 @@ var fs = require('fs'),
 var config = JSON.parse(fs.readFileSync('config.json'));
 console.log('config:' + JSON.stringify(config));
 
+var moderatorPass = (process.argv.length>=3)?process.argv[2]:'';
+console.log('moderatorPass:' + moderatorPass);
+
 var socket = io.connect(config.serverURL);
 
 socket.on('connect', function(){
@@ -33,7 +36,8 @@ socket.on('connect', function(){
   });  
 
   socket.emit('createRoom', {
-    name: config.name
+    name: config.name,
+    moderatorPass: moderatorPass
   });
 
   //set up watch on folders (Note that this will do an initial scan and emit as well as watch going forward)

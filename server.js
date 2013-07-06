@@ -34,8 +34,10 @@ io.sockets.on('connection', function (socket) {
       //full update of state including ody and request fresh file (pick first file arbitrarily)
       rooms[data.name] = data;
       rooms[data.name].files = [];
-      rooms[data.name].currentFile = null;
+      rooms[data.name].currentFile = "no file";
       rooms[data.name].hostSocket = socket;
+      rooms[data.name].editingUserSocket = null;
+      rooms[data.name].moderatorPass = data.moderatorPass;
 
       console.log('new room created:' + data.name);
     }else{
@@ -63,15 +65,24 @@ io.sockets.on('connection', function (socket) {
       socket.emit('changeCurrentFile', roomState.currentFile);
       socket.emit('refreshData', roomState.body);
 
+      //if this is the first or only user, make him the editing user
+      if(!roomState.editingUserSocket){
+        roomState.editingUserSocket = socket; 
+      }  
+
       //tell this socket about all of the users (including itself)
       var clients = io.sockets.clients(data.room);
       clients.forEach(function(client){
         client.get('userId', function(err, clientUserId){
           if(clientUserId){
-            socket.emit('newUser', {userId:clientUserId, isYou:(client===socket)?true:false});
+            socket.emit('newUser', {
+              userId:clientUserId, 
+              isYou:(client===socket)?true:false,
+              isEditing:(client===roomState.editingUserSocket)?true:false
+            });
           }
         });
-      });      
+      });        
 
       //now tell all of the other sockets about the new user
       socket.broadcast.to(data.room).emit('newUser', {userId:userId, isYou:false});
