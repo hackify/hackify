@@ -31,14 +31,16 @@ io.sockets.on('connection', function (socket) {
       //full update of state including ody and request fresh file (pick first file arbitrarily)
       rooms[data.name] = data;
 
-      socket.emit('changeFile', data.files[0]);
-      rooms[data.name].currentFile = data.files[0];
+      // socket.emit('changeFile', data.files[0]);
+      rooms[data.name].files = [];
+      // rooms[data.name].currentFile = data.files[0];
+      rooms[data.name].currentFile = null;
       rooms[data.name].hostSocket = socket;
 
       console.log('new room created:' + data.name);
     }else{
       //just update the files
-      rooms[data.name].files = data.files;
+      // rooms[data.name].files = data.files;
       rooms[data.name].hostSocket = socket;
       console.log('host reconnected to room' + data.name);
     }   
@@ -79,31 +81,69 @@ io.sockets.on('connection', function (socket) {
     });    
   });
 
+  //watch operations from host
+  socket.on('fileAdded', function (file) {
+    socket.get('room', function (err, room) {
+      if(!err && room!="" && room !=null){
+        if(rooms[room].files.indexOf(file) === -1){
+          rooms[room].files.push(file);
+          io.sockets.in(room).emit('fileAdded', file);          
+        }
+      }
+    });
+  });  
+
+  socket.on('fileDeleted', function (file) {
+    socket.get('room', function (err, room) {
+      if(!err && room!="" && room !=null){
+        if(rooms[room].files.indexOf(file) > -1){
+          rooms[room].files.splice(rooms[room].files.indexOf(file), 1);
+          io.sockets.in(room).emit('fileDeleted', file);          
+        }
+      }
+    });
+  });  
+
+  socket.on('fileChanged', function (file) {
+    socket.get('room', function (err, room) {
+      if(!err && room!="" && room !=null){
+        if(rooms[room].files.indexOf(file) > -1){
+          io.sockets.in(room).emit('fileChanged', file);          
+        }
+      }
+    });
+  });  
+
   //client --> server --> client (client joins a particular room and gets room data refreshed)
   socket.on('join', function (data) {
     console.log('recieved Join request room' + data.room);
     if(rooms[data.room]){
-      var roomState = rooms[data.room];
+      //set up the socket properties
       socket.join(data.room);
       socket.set('room', data.room);
       var userId = (data.userId)?data.userId:'hacker' + Math.floor(Math.random() * 9999999999).toString();
       socket.set('userId', userId);
-      
+
+      //tell the socket about the room state
+      var roomState = rooms[data.room];
+      roomState.files.forEach(function(file){
+        socket.emit('fileAdded', file)
+      });
+      socket.emit('changeFile', roomState.currentFile);
+      socket.emit('refreshData', roomState.body);
+
       //tell this socket about all of the users (including itself)
       var clients = io.sockets.clients(data.room);
       clients.forEach(function(client){
         client.get('userId', function(err, clientUserId){
           if(clientUserId){
-            socket.emit('newUser', clientUserId);
+            socket.emit('newUser', {userId:clientUserId, isYou:(client===socket)?true:false});
           }
         });
-      });
+      });      
 
-      //now tell all of the other sockets about this guy
-      socket.broadcast.to(data.room).emit('newUser', userId);
-
-      console.log('refreshing socket with room data');
-      socket.emit('refreshAll', {body: roomState.body, files:roomState.files, currentFile:roomState.currentFile, userId:userId });
+      //now tell all of the other sockets about the new user
+      socket.broadcast.to(data.room).emit('newUser', {userId:userId, isYou:false});
     }else{
       socket.emit('updatechat','hackify','room ' + data.room + ' does not exist')
     }
@@ -113,6 +153,7 @@ io.sockets.on('connection', function (socket) {
   socket.on('leave', function (data) {
     socket.leave(data.room);
     socket.set('room', null);
+    //todo - tell everybody else in room that user is gone.. also wire up same to socket disconnect...?? both??
   });
 
   //client --> server --> clients (active editor sends incremental file data change to the server which then broadcasts it to other clients in the same room)

@@ -29,6 +29,10 @@
         max-width:inherit;
         height: 100%;
       }
+      button.fileChanged
+      {
+        background-color:red;
+      }
     </style>
   </head>
   <body>
@@ -70,26 +74,31 @@
       //client --> server (Join a particular room)
       var room = decodeURIComponent((new RegExp('[?|&]' + 'room' + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
       socket.emit('join', {room: room});
-      
-      //server --> client (fresh or initial drop of data for the editor)
-      socket.on('refreshAll', function (data) {
-        editor.setValue(data.body);
-        //TODO - refactor files same as users i.e. simple emit for each new file rather than getting list at start.
-        data.files.forEach(function(file){
-          $('#files').append('<button onclick="doChange(\'' + file + '\')">' + file + ' </button>');
-        });
-        $('#fileName').text(data.currentFile);
-        $('#userId').text(data.userId);
-      });
 
       //server --> client (notification that the active file has changed, data comes later)
       socket.on('changeFile', function (file) {
         $('#fileName').text(file);
       });
 
+      socket.on('fileAdded', function(file){
+        $('#files').append('<button onclick="doChange(\'' + file + '\')">' + file + ' </button>');
+      });
+
+      socket.on('fileDeleted', function(file){
+        $("button:contains('" + file + "')").remove();
+      });
+
+      socket.on('fileChanged', function(file){
+        $("button:contains('" + file + "')").addClass('fileChanged');
+      });
+
       //server --> client (server sends fresh data for active file)
       socket.on('refreshData', function (body) {
-        editor.setValue(body);
+        if(body){
+          editor.setValue(body);
+        }else{
+          editor.setValue('')
+        }
       });
 
       //server --> client (recieve an incremental operation from the active editor via the server)
@@ -103,14 +112,21 @@
         $('#conversation').append('<b>'+ userId + ':</b> ' + data + '<br>');
       });
 
-      socket.on('newUser', function(userId){
-        $('#users').append('<div id="' + userId + '">' + userId + '</div>');
+      socket.on('newUser', function(data){
+        if(data.isYou){
+          $('#users').append('<div id="' + data.userId + '"><strong>' + data.userId + '</strong></div>');
+          $('#userId').text(data.userId);
+        }else{
+          $('#users').append('<div id="' + data.userId + '">' + data.userId + '</div>');
+        }      
       });
 
       socket.on('userIdChanged', function(oldUserId, newUserId){
-        $('#' + oldUserId).replaceWith('<div id="' + newUserId + '">' + newUserId + '</div>');  //soooo hacky, need to angular this stuff
         if(oldUserId===$('#userId').text()){
           $('#userId').text(newUserId);
+          $('#' + oldUserId).replaceWith('<div id="' + newUserId + '"><strong>' + newUserId + '</strong></div>');  //soooo hacky, need to angular this stuff
+        }else{
+          $('#' + oldUserId).replaceWith('<div id="' + newUserId + '">' + newUserId + '</div>');  //soooo hacky, need to angular this stuff
         }      
       });
       

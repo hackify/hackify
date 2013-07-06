@@ -1,5 +1,6 @@
 var fs = require('fs'),
-    io = require('socket.io-client');
+    io = require('socket.io-client'),
+    chokidar = require('chokidar');
 
 var config = JSON.parse(fs.readFileSync('config.json'));
 
@@ -31,24 +32,17 @@ socket.on('connect', function(){
   });
 
   console.log('config:' + JSON.stringify(config));
-  finalFileList = [];
-  config.hostFolders.forEach(function(folder){
-    var fileList = fs.readdirSync(folder);
-    fileList.forEach(function(file){
-      if(file){
-        var fullFile = folder + '/' + file;
-        stat = fs.statSync(fullFile);
-        if(!stat.isDirectory()){
-          finalFileList.push(fullFile);
-        }  
-      }
-    });
-  });
-  console.log('serving files:' + JSON.stringify(finalFileList));
 
   //host --> server (host requests creation of a room)
   socket.emit('createOrJoinRoom', {
-    name: config.name,
-    files: finalFileList
+    name: config.name
   });
+
+  //set up watch on folders
+  chokidar.watch(config.hostFolder, {ignored: new RegExp(config.ignoreRegex), persistent: true})
+    .on('add', function(file) {socket.emit('fileAdded', file);})
+    .on('change', function(file) {socket.emit('fileChanged', file);})
+    .on('unlink', function(file) {socket.emit('fileDeleted', file);})
+    .on('error', function(error) {console.error('Error happened', error);})
+
 });
