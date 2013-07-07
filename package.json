@@ -11,9 +11,5 @@
     "socket.io-client": "0.9.16",
     "chokidar": "0.6.2"
   },
-  "devDependencies": {},
-  "subdomain": "mdausmann.hackify",
-  "scripts": {
-    "start": "server.js"
-  }
+  "devDependencies": {}
 }
