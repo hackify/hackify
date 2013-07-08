@@ -1,6 +1,0 @@
-{
-  "name": "hackify",
-  "hostFolder": "/Users/michael/Workspace/hackify",
-  "ignoreRegex": "/(node_modules|.git)/",
-  "serverURL": "http://localhost:4000"
-}
