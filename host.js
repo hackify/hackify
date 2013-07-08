@@ -38,18 +38,24 @@ socket.on('connect', function(){
 
   socket.on('saveCurrentFile', function(data){
     console.log('saveCurrentFile :' + data.file);
-    fs.writeFile(data.file, data.body, function(err){
-      if(err){
-        socket.emit('newChatMessage', "error saving file " + data.file + ' ' + err);
-      }else{
-        socket.emit('newChatMessage', "file save succeeded for file " + data.file);
-      }
-    });
+    if(program.readonly){
+      console.log('file save for ' + data.file + ' refused... room is read only')
+      socket.emit('newChatMessage', 'file save for ' + data.file + ' refused... room is read only');
+    }else{
+      fs.writeFile(data.file, data.body, function(err){
+        if(err){
+          socket.emit('newChatMessage', "error saving file " + data.file + ' ' + err);
+        }else{
+          socket.emit('newChatMessage', "file save succeeded for file " + data.file);
+        }
+      });      
+    }
   });  
 
   socket.emit('createRoom', {
     name: program.name,
-    moderatorPass: program.pass
+    moderatorPass: program.pass,
+    readOnly: program.readonly
   });
 
   //set up watch on folders (Note that this will do an initial scan and emit as well as watch going forward)
