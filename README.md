@@ -12,7 +12,7 @@ $ cd /Users/awesomeguy/cool_project
 $ hackify
 ```
 BAM! you have hosted a room, a collaborative coding space... No setup, No logins, Your code, on Your machine.
-You send the room link to your code bro's.... http://hackify.org?room=123456
+You send the room link to your code bro's.... http://hackify.org/rooms/*****
 They all hit the link... BAM! your all coding together
 You chat, you code, you listen to the same music, your coding awesomeness is now a shared experience.
 Congratulations you've been Hackified.

@@ -3,10 +3,11 @@
 var fs = require('fs'),
     io = require('socket.io-client'),
     chokidar = require('chokidar'),
-    program = require('commander');;
+    program = require('commander'),
+    pjson = require('./package.json');
 
 program
-  .version('0.1.0')
+  .version(pjson.version)
   .option('-n, --name [name]', 'Name for the room', Math.floor(Math.random() * 999999).toString())
   .option('-p, --pass [password]', 'Moderator password for the room', Math.floor(Math.random() * 999999).toString())    
   .option('-s, --server [url]', 'Location of the hackify server [http://www.hackify.org]', 'http://www.hackify.org')
@@ -15,12 +16,19 @@ program
   .parse(process.argv);
 
 console.log('Creating a hackify room with:');
-console.log('room link: %s?room=%s', program.server, program.name);
+console.log('room link: %s/rooms/%s', program.server, program.name);
 console.log('moderator password: %s', program.pass);
 console.log('ignoring folders matching: %s', program.ignore);
 if (program.readonly) console.log('room will be read only');
 
 var socket = io.connect(program.server);
+
+socket.on('error', function(e){
+  console.log('Error Occurred:' + e);
+});
+socket.on('connect_failed', function(e){
+  console.log('Connection Failure:' + e);
+});
 
 socket.on('connect', function(){
   console.log('connected to server ' + program.server)
@@ -55,7 +63,8 @@ socket.on('connect', function(){
   socket.emit('createRoom', {
     name: program.name,
     moderatorPass: program.pass,
-    readOnly: program.readonly
+    readOnly: program.readonly,
+    hostVersion: pjson.version
   });
 
   //set up watch on folders (Note that this will do an initial scan and emit as well as watch going forward)

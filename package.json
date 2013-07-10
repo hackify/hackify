@@ -3,7 +3,7 @@
   "name": "hackify",
   "description"   : "Command line utility for hosting local content in a hackify.org room for collaborative editing",
   "homepage": "http://hackify.org",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "bin": { "hackify": "./host.js" },
   "engines": {
     "node": ">= 0.8.12"
