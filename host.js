@@ -58,6 +58,12 @@ socket.on('connect', function(){
         }
       });      
     }
+  });
+
+  socket.on('disconnect', function(){
+    console.log('disconnected from server');
+    watcher.close();
+    process.exit();
   });  
 
   socket.emit('createRoom', {
@@ -68,7 +74,7 @@ socket.on('connect', function(){
   });
 
   //set up watch on folders (Note that this will do an initial scan and emit as well as watch going forward)
-  chokidar.watch(process.cwd(), {ignored: new RegExp(program.ignore), persistent: true})
+  var watcher = chokidar.watch(process.cwd(), {ignored: new RegExp(program.ignore), persistent: true})
     .on('add', function(file) {socket.emit('fileAdded', file);})
     .on('change', function(file) {socket.emit('fileChanged', file);})
     .on('unlink', function(file) {socket.emit('fileDeleted', file);})
