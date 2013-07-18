@@ -63,7 +63,7 @@ socket.on('connect', function(){
   socket.emit('createRoom', {
     name: program.name,
     moderatorPass: program.pass,
-    readOnly: program.readonly,
+    readOnly: program.readonly?true:false,
     hostVersion: pjson.version
   });
 
