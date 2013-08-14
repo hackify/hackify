@@ -22,6 +22,7 @@ console.log('ignoring folders matching: %s', program.ignore);
 if (program.readonly) console.log('room will be read only');
 
 var socket = io.connect(program.server);
+var hostedFiles = [];
 
 socket.on('error', function(e){
   console.log('Error Occurred:' + e);
@@ -35,13 +36,18 @@ socket.on('connect', function(){
 
   socket.on('changeCurrentFile', function(newFile){
     console.log('changeCurrentFile :' + newFile);
-    fs.readFile(newFile, 'utf8', function(err, data) {
-      if(err){
-        socket.emit('newChatMessage', "error reading file " + newFile + ' ' + err);
-      }else{
-        socket.emit('refreshData', data, true);
-      }
-    });
+    if(hostedFiles.indexOf(newFile) > -1){
+      fs.readFile(newFile, 'utf8', function(err, data) {
+        if(err){
+          socket.emit('newChatMessage', "error reading file " + newFile + ' ' + err);
+        }else{
+          socket.emit('refreshData', data, true);
+        }
+      });
+    } else{
+      console.log('changeCurrentFile for ' + newFile + ' refused... file is not hosted')
+      socket.emit('newChatMessage', 'changeCurrentFile for ' + newFile + ' refused... file is not hosted');       
+    }
   });
 
   socket.on('saveCurrentFile', function(data){
@@ -49,6 +55,9 @@ socket.on('connect', function(){
     if(program.readonly){
       console.log('file save for ' + data.file + ' refused... room is read only')
       socket.emit('newChatMessage', 'file save for ' + data.file + ' refused... room is read only');
+    }else if(hostedFiles.indexOf(data.file) === -1){
+      console.log('file save for ' + data.file + ' refused... file is not hosted')
+      socket.emit('newChatMessage', 'file save for ' + data.file + ' refused... file is not hosted');      
     }else{
       fs.writeFile(data.file, data.body, function(err){
         if(err){
@@ -75,9 +84,17 @@ socket.on('connect', function(){
 
   //set up watch on folders (Note that this will do an initial scan and emit as well as watch going forward)
   var watcher = chokidar.watch(process.cwd(), {ignored: new RegExp(program.ignore), persistent: true})
-    .on('add', function(file) {socket.emit('fileAdded', file);})
+    .on('add', function(file, stats) {
+      socket.emit('fileAdded', file);
+      hostedFiles.push(file);
+    })
     .on('change', function(file) {socket.emit('fileChanged', file);})
-    .on('unlink', function(file) {socket.emit('fileDeleted', file);})
+    .on('unlink', function(file) {
+      socket.emit('fileDeleted', file);
+      if(hostedFiles.indexOf(file) > -1){
+        hostedFiles.splice(hostedFiles.indexOf(file), 1);
+      }      
+    })
     .on('error', function(error) {console.error('Error happened', error);})
 
 });
