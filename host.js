@@ -24,6 +24,10 @@ if (program.readonly) console.log('room will be read only');
 var socket = io.connect(program.server);
 var hostedFiles = [];
 
+socket.on('roomCreated', function(){
+  console.log('room created successfully');
+});
+
 socket.on('error', function(e){
   console.log('Error Occurred:' + e);
 });
